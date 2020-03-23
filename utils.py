@@ -12,7 +12,7 @@ def nan_predicter(data, data_predict, verbose=True):
     full_set = data[(data.bodyType.notnull())&
         (data.fuelType.notnull())&
         (data.gearbox.notnull())]
-    feature = ['model', 'brand', 'power','regYear']
+    feature = ['model', 'brand', 'power','used_time']
     predict_feature = ['bodyType', 'fuelType', 'gearbox']
     X = full_set[feature]
     y = full_set[predict_feature]
@@ -54,7 +54,7 @@ def nan_predicter(data, data_predict, verbose=True):
     return data, data_predict
 
 
-# [data_loader]: 获取数据
+# [data_loader]: 获取数据（包含数据清洗）
 # ---- Example ---- #
 # data, X_pred = data_loader(fillna=fillna, verbose=verbose)
 def data_loader(fillna='predict', verbose=True,
@@ -63,10 +63,16 @@ def data_loader(fillna='predict', verbose=True,
     data = pd.read_csv(data_path, sep=' ')
     data_predict = pd.read_csv(data_predict_path, sep=' ')
     
-    # 对汽车生产日期数据进行提取
+    # 对汽车使用日期数据进行提取
+    # 由于部分 regDate 的月份为 0，因此使用 errors='coerce' 强制转换
+    # 转换后将缺失值的月份补为 1，并重新计算日期
     for data_set in (data, data_predict):
-        data_set['regYear'] = data_set['regDate'].apply(lambda Date: int(str(Date)[:4]))
-        data_set['regMonth'] = data_set['regDate'].apply(lambda Date: int(str(Date)[4:6]))
+        data_set['used_time'] = (pd.to_datetime(data_set['creatDate'], format='%Y%m%d', errors='coerce') - 
+                            pd.to_datetime(data_set['regDate'], format='%Y%m%d', errors='coerce')).dt.days
+        data_set['regDate'][data_set.used_time.isna()] = data_set['regDate'][data_set.used_time.isna()]+1000
+        data_set['used_time'] = (pd.to_datetime(data_set['creatDate'], format='%Y%m%d', errors='coerce') - 
+                            pd.to_datetime(data_set['regDate'], format='%Y%m%d', errors='coerce')).dt.days    
+
     # 将字符类型转换为数字类型（未知的赋值为2）
     data['notRepairedDamage'] = data['notRepairedDamage'].map({'0.0':0, '1.0':1, '-':2})
     data_predict['notRepairedDamage'] = data_predict['notRepairedDamage'].map({'0.0':0, '1.0':1, '-':2})
@@ -217,3 +223,24 @@ def model_test_cv(estimator, X, y ,cv=3,
         return mean_test_score, mean_train_score
     else:
         return mean_test_score
+
+
+# [submit_fun]: 直接使用估计器预测并保存文件
+def submit_fun(estimator, X_pred, 
+               path='/Users/apple/Documents/Python/TianChi/Car_Price/', 
+               file_name='submit.csv'):
+    Y_pred = np.exp(estimator.predict(X_pred))
+    submit = pd.read_csv(path+'data/used_car_sample_submit.csv')
+    submit['price'] = Y_pred
+    submit.to_csv(path+file_name, index=False)
+    print('Saved in',path)
+
+# [submit_fun2]: 将预测结果保存文件
+def submit_fun2(Y_pred, 
+               path='/Users/apple/Documents/Python/TianChi/Car_Price/', 
+               file_name='submit.csv'):
+    Y_pred = np.exp(Y_pred)
+    submit = pd.read_csv(path+'data/used_car_sample_submit.csv')
+    submit['price'] = Y_pred
+    submit.to_csv(path+file_name, index=False)
+    print('Saved in',path)
