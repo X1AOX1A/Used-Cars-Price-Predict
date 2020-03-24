@@ -112,7 +112,6 @@ def data_loader(fillna='predict', verbose=True,
 
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MinMaxScaler
-
 # [get_data]: 获取训练数据
 # ---- Example ---- #
 # X, y, X_pred = get_data(fillna='predict', box_cox=True, split=False,
