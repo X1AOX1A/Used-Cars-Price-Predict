@@ -107,6 +107,9 @@ def data_loader(fillna='predict', verbose=True,
         for col in ['bodyType', 'fuelType', 'gearbox']:
             for D in [data, data_predict]:
                 D[col].fillna(-1, inplace=True)
+    else:
+        print('\n\'fillna\' cannot be', fillna)
+        return None
     return data, data_predict
 
 
@@ -181,7 +184,9 @@ def MAE_score(estimator, X , y):
 # print('test MAE:', test_score)
 # print('train MAE:', train_score)
 def model_test(estimator, X_train, X_test, y_train, y_test,
-               return_train_score=True, plot_predict=False):
+               return_train_score=True, plot_predict=False, verbose=True):
+    if verbose:
+        print('The model_test fun is use for box_cox data!')
     y_pred = estimator.fit(X_train, y_train).predict(X_test)
     test_score = MAE_log(y_pred, y_test)
     if plot_predict:
@@ -243,3 +248,24 @@ def submit_fun2(Y_pred,
     submit['price'] = Y_pred
     submit.to_csv(path+file_name, index=False)
     print('Saved in',path)
+
+
+from sklearn.decomposition import PCA
+def pca_module(X, X_pred, n_components=5, verbose=True):
+    v_columns = ['v_'+str(num) for num in range(0,15)]
+    pca  = PCA().fit(X[v_columns])
+    if verbose:
+        print('PCA components:', n_components)
+        print('Explained Variance:', np.cumsum(pca.explained_variance_ratio_)[n_components])
+    column_names = ['pca_'+str(num) for num in range(0, n_components)]
+    X_v_data = pd.DataFrame(np.dot(X[v_columns], 
+                                   pca.components_[:n_components].T), 
+                            columns=column_names)
+    X_pred_v_data = pd.DataFrame(np.dot(X_pred[v_columns], 
+                                        pca.components_[:n_components].T), 
+                                 columns=column_names)
+    X.drop(v_columns, axis=1, inplace=True)
+    X_pred.drop(v_columns, axis=1, inplace=True)
+    X = pd.concat([X, X_v_data], axis=1)
+    X_pred = pd.concat([X_pred, X_pred_v_data], axis=1)
+    return X, X_pred
